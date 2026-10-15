@@ -8,4 +8,7 @@ export interface SourceRepository {
   isArchived: boolean;
   description: string | null;
   defaultBranch: string;
+  topics: string[];
+  homepage: string | null;
+  pushedAt: string | null;
 }

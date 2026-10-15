@@ -25,5 +25,8 @@ export async function fetchSourceRepositories(): Promise<SourceRepository[]> {
     isArchived: repo.archived ?? false,
     description: repo.description,
     defaultBranch: repo.default_branch,
+    topics: repo.topics ?? [],
+    homepage: repo.homepage ?? null,
+    pushedAt: repo.pushed_at ?? null,
   }));
 }
