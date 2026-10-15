@@ -18,12 +18,21 @@ if (!backupToken || backupToken.includes("placeholder") || backupToken.includes(
   );
 }
 
+const silentLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
+
 export const sourceOctokit: Octokit = new Octokit({
   auth: sourceToken,
+  log: silentLogger,
 });
 
 export const backupOctokit: Octokit = new Octokit({
   auth: backupToken,
+  log: silentLogger,
 });
 
 /**
