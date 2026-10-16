@@ -18,8 +18,11 @@ function sleep(ms: number): Promise<void> {
 export async function ensureBackupRepositoryExists(
   backupOwner: string,
   repoName: string,
-  description?: string | null
+  description?: string | null,
+  isPrivate: boolean = false
 ): Promise<ProvisionResult> {
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
+
   try {
     await backupOctokit.rest.repos.get({
       owner: backupOwner,
@@ -32,7 +35,7 @@ export async function ensureBackupRepositoryExists(
     };
   } catch (error: any) {
     if (error.status === 404) {
-      console.log(`[INFO] Provisioning private backup repository: ${backupOwner}/${repoName}...`);
+      console.log(`[INFO] Provisioning backup repository: [CONFIDENTIAL_STORAGE]/${displayName}...`);
 
       const maxRetries = 3;
       let attempt = 0;
@@ -46,7 +49,7 @@ export async function ensureBackupRepositoryExists(
             ...(description ? { description } : {}),
           });
 
-          console.log(`[SUCCESS] Backup repository ${backupOwner}/${repoName} provisioned successfully.`);
+          console.log(`[SUCCESS] Backup repository provisioned successfully.`);
 
           // Throttling: wait 2 seconds after each creation to respect GitHub creation rate limits
           await sleep(2000);
@@ -65,7 +68,7 @@ export async function ensureBackupRepositoryExists(
           if (isSecondaryRateLimit && attempt < maxRetries - 1) {
             const backoffSeconds = (attempt + 1) * 30;
             console.log(
-              `[WARN] GitHub secondary rate limit hit for ${repoName}. Waiting ${backoffSeconds}s before retrying...`
+              `[WARN] GitHub secondary rate limit hit for ${displayName}. Waiting ${backoffSeconds}s before retrying...`
             );
             await sleep(backoffSeconds * 1000);
             attempt++;
@@ -108,6 +111,7 @@ export async function reconcileDeletedRepositories(
       continue;
     }
 
+    const displayRepoName = bRepo.private ? "[PRIVATE REPOSITORY]" : bRepo.name;
     const match = bRepo.name.match(deletePattern);
 
     // Case 1: Repository is already in soft delete (starts with DELETED_YYYY-MM-DD_)
@@ -117,14 +121,14 @@ export async function reconcileDeletedRepositories(
 
       // Check if the 30-day retention period has expired
       if (currentDate >= expirationDate) {
-        console.log(`[WARN] Retention period expired for ${bRepo.name}. Permanently purging...`);
+        console.log(`[WARN] Retention period expired for ${displayRepoName}. Permanently purging...`);
         await backupOctokit.rest.repos.delete({
           owner: backupOwner,
           repo: bRepo.name,
         });
-        console.log(`[SUCCESS] Purged repository ${bRepo.name} from backup.`);
+        console.log(`[SUCCESS] Purged repository ${displayRepoName} from backup.`);
       } else {
-        console.log(`[INFO] Retention active for ${bRepo.name} (scheduled for purge on ${expirationDateStr}).`);
+        console.log(`[INFO] Retention active for ${displayRepoName} (scheduled for purge on ${expirationDateStr}).`);
       }
       continue;
     }
@@ -146,7 +150,7 @@ export async function reconcileDeletedRepositories(
     const safeOriginalName = bRepo.name.slice(0, maxOriginalLength);
     const newRepoName = `${prefix}${safeOriginalName}`;
 
-    console.log(`[WARN] Repository ${bRepo.name} was deleted at source. Moving to soft delete retention...`);
+    console.log(`[WARN] Repository ${displayRepoName} was deleted at source. Moving to soft delete retention...`);
 
     // Rename repository to include expiration date and mark as archived (read-only)
     await backupOctokit.rest.repos.update({
@@ -157,7 +161,7 @@ export async function reconcileDeletedRepositories(
     });
 
     console.log(
-      `[SUCCESS] Repository marked as soft-deleted: ${newRepoName} (retention until ${expirationDateStr}).`
+      `[SUCCESS] Repository marked as soft-deleted: ${displayRepoName} (retention until ${expirationDateStr}).`
     );
   }
 }
