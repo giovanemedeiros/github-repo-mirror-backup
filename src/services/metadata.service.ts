@@ -17,13 +17,11 @@ export async function syncRepositoryMetadata(
     default_branch: repo.defaultBranch,
   });
 
-  if (repo.topics.length > 0) {
-    await backupOctokit.rest.repos.replaceAllTopics({
-      owner: backupOwner,
-      repo: repo.name,
-      names: repo.topics,
-    });
-  }
+  await backupOctokit.rest.repos.replaceAllTopics({
+    owner: backupOwner,
+    repo: repo.name,
+    names: repo.topics ?? [],
+  });
 }
 
 /**
@@ -32,8 +30,10 @@ export async function syncRepositoryMetadata(
  */
 export async function disableActionsInBackup(
   backupOwner: string,
-  repoName: string
+  repoName: string,
+  isPrivate: boolean = false
 ): Promise<void> {
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
   try {
     await backupOctokit.rest.actions.setGithubActionsPermissionsRepository({
       owner: backupOwner,
@@ -41,45 +41,86 @@ export async function disableActionsInBackup(
       enabled: false,
     });
   } catch (error) {
-    console.warn(`[WARN] Could not disable Actions for ${repoName}: ${error}`);
+    console.warn(`[WARN] Could not disable Actions for ${displayName}: ${error}`);
   }
 }
 
 /**
  * Synchronizes GitHub Releases from the source repository to the backup repository.
- * Matches releases by tag_name and replicates title, body (markdown notes), and flags.
+ * Reconciles creation, updates (title, body, flags), and deletions to ensure 100% parity.
  */
 export async function syncReleases(
   sourceOwner: string,
   backupOwner: string,
-  repoName: string
+  repoName: string,
+  isPrivate: boolean = false
 ): Promise<void> {
-  const releases = await sourceOctokit.paginate(
-    sourceOctokit.rest.repos.listReleases,
-    {
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
+
+  const [sourceReleases, backupReleases] = await Promise.all([
+    sourceOctokit.paginate(sourceOctokit.rest.repos.listReleases, {
       owner: sourceOwner,
       repo: repoName,
-    }
-  );
+      per_page: 100,
+    }),
+    backupOctokit.paginate(backupOctokit.rest.repos.listReleases, {
+      owner: backupOwner,
+      repo: repoName,
+      per_page: 100,
+    }),
+  ]);
 
-  for (const release of releases) {
-    try {
-      await backupOctokit.rest.repos.getReleaseByTag({
+  // 1. Delete releases in backup that no longer exist in source
+  for (const bRel of backupReleases) {
+    const existsInSource = sourceReleases.some((sRel) => sRel.tag_name === bRel.tag_name);
+    if (!existsInSource) {
+      if (!isPrivate) {
+        console.log(`[INFO] Removing deleted release ${bRel.tag_name} from ${displayName}...`);
+      }
+      await backupOctokit.rest.repos.deleteRelease({
         owner: backupOwner,
         repo: repoName,
-        tag: release.tag_name,
+        release_id: bRel.id,
       });
-    } catch (error: any) {
-      if (error.status === 404) {
-        console.log(`[INFO] Replicating release ${release.tag_name} for ${repoName}...`);
-        await backupOctokit.rest.repos.createRelease({
+    }
+  }
+
+  // 2. Create missing releases or update modified releases
+  for (const sRel of sourceReleases) {
+    const existingBackupRel = backupReleases.find((bRel) => bRel.tag_name === sRel.tag_name);
+
+    if (!existingBackupRel) {
+      if (!isPrivate) {
+        console.log(`[INFO] Replicating release ${sRel.tag_name} for ${displayName}...`);
+      }
+      await backupOctokit.rest.repos.createRelease({
+        owner: backupOwner,
+        repo: repoName,
+        tag_name: sRel.tag_name,
+        name: sRel.name ?? sRel.tag_name,
+        body: sRel.body ?? "",
+        draft: sRel.draft,
+        prerelease: sRel.prerelease,
+      });
+    } else {
+      const titleChanged = (sRel.name ?? sRel.tag_name) !== (existingBackupRel.name ?? existingBackupRel.tag_name);
+      const bodyChanged = (sRel.body ?? "") !== (existingBackupRel.body ?? "");
+      const flagsChanged =
+        sRel.draft !== existingBackupRel.draft || sRel.prerelease !== existingBackupRel.prerelease;
+
+      if (titleChanged || bodyChanged || flagsChanged) {
+        if (!isPrivate) {
+          console.log(`[INFO] Updating modified release ${sRel.tag_name} for ${displayName}...`);
+        }
+        await backupOctokit.rest.repos.updateRelease({
           owner: backupOwner,
           repo: repoName,
-          tag_name: release.tag_name,
-          name: release.name ?? release.tag_name,
-          body: release.body ?? "",
-          draft: release.draft,
-          prerelease: release.prerelease,
+          release_id: existingBackupRel.id,
+          tag_name: sRel.tag_name,
+          name: sRel.name ?? sRel.tag_name,
+          body: sRel.body ?? "",
+          draft: sRel.draft,
+          prerelease: sRel.prerelease,
         });
       }
     }
@@ -195,6 +236,9 @@ export async function isRepositoryUpToDate(
       }
       if ((sRel.body ?? "") !== (bRel.body ?? "")) {
         return { isUpToDate: false, reason: `Release notes modified for ${sRel.tag_name}` };
+      }
+      if (sRel.draft !== bRel.draft || sRel.prerelease !== bRel.prerelease) {
+        return { isUpToDate: false, reason: `Release flags modified for ${sRel.tag_name}` };
       }
     }
 

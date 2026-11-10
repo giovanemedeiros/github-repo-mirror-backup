@@ -26,13 +26,13 @@ git push --prune --force <backup_url> refs/heads/*:refs/heads/* refs/tags/*:refs
 ```
 Em caso de falha de rede ou subprocesso, credenciais e tokens em URLs remotas são rigorosamente sanitizados e substituídos por `***` antes de qualquer registro em log. Os diretórios temporários (`temp_mirrors/`) são limpos de forma garantida no bloco `finally`.
 
-### 2. Detecção de Drift Incremental (`metadata.service.ts`)
+### 2. Detecção de Drift Incremental e Paridade de Metadados (`metadata.service.ts`)
 Antes de transferir dados Git, o bot executa uma auditoria comparativa rápida (*Multi-Dimensional Drift Detection*):
 1. **Existência remota:** Se o repositório não existe no destino, inicia o espelhamento imediatamente.
 2. **Commit SHA da Default Branch:** Compara o hash SHA da branch principal na origem e no destino.
 3. **Carimbo de Atualização (`pushed_at`):** Detecta novos pushes ocorridos na conta de origem.
-4. **Metadados do Repositório:** Compara descrição, homepage e tópicos.
-5. **Releases e Tags:** Compara títulos, corpos em Markdown e tags de releases existentes.
+4. **Metadados do Repositório:** Compara e sincroniza descrição, homepage e tópicos (incluindo limpeza total de tags quando removidas na origem).
+5. **Reconciliação Completa de Releases e Tags:** Compara contagem, títulos, notas em Markdown, flags (`draft`/`prerelease`) e tags, replicando novas releases, atualizando releases editadas (`updateRelease`) e expurgando do backup releases excluídas na origem (`deleteRelease`).
 
 Se todos os critérios forem idênticos, a sincronização é ignorada em milissegundos (`[SKIP]`), poupando banda e recursos de computação.
 
