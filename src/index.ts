@@ -136,8 +136,8 @@ async function main() {
         }
 
         await syncRepositoryMetadata(backupUser, repo);
-        await syncReleases(sourceUser, backupUser, repo.name);
-        await disableActionsInBackup(backupUser, repo.name);
+        await syncReleases(sourceUser, backupUser, repo.name, true);
+        await disableActionsInBackup(backupUser, repo.name, true);
       } catch {
         privateFailures++;
         failures++;
