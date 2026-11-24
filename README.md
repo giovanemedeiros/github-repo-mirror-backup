@@ -131,5 +131,5 @@ No repositório do GitHub, acesse **Settings > Secrets and variables > Actions**
 - `BACKUP_GITHUB_TOKEN`: PAT da conta de backup.
 
 ### 2. Gatilhos de Execução
-- **Agendamento Diário (Cron):** Executa automaticamente todos os dias às **04:00 UTC** (**01:00 BRT**), mantendo a contingência sempre atualizada e defasada para evitar filas no provedor.
+- **Agendamento Diário (Cron):** Executa automaticamente todos os dias às **06:37 UTC** (**03:37 BRT** - expressão cron `37 6 * * *`), utilizando minuto fora de pico (*off-peak*) para evitar filas de congestionamento do GitHub Actions e mantendo a contingência sempre atualizada após a execução do bot de catálogo.
 - **Disparo Manual (*Workflow Dispatch*):** Pode ser executado sob demanda a qualquer instante pela interface web do GitHub Actions com um clique em **Run workflow**.
