@@ -3,8 +3,8 @@ name: Git Repository Mirror Backup
 on:
   workflow_dispatch:
   schedule:
-    # Runs daily at 04:00 UTC (01:00 BRT)
-    - cron: "0 4 * * *"
+    # Runs daily at 06:37 UTC (03:37 BRT - off-peak minute to avoid GitHub Actions queue congestion)
+    - cron: "37 6 * * *"
 
 jobs:
   backup-mirror:
