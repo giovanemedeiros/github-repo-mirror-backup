@@ -1,11 +1,5 @@
 import fs from "node:fs/promises";
 
-export interface RepositoryExecutionDetail {
-  name: string;
-  status: "SYNCED" | "SKIPPED" | "FAILED";
-  reason?: string | undefined;
-}
-
 export interface BackupExecutionMetrics {
   sourceUser: string;
   startTime: Date;
@@ -15,7 +9,6 @@ export interface BackupExecutionMetrics {
   publicSkipped: number;
   failures: number;
   privateStatus: "Secured & Synchronized" | "Secured with Warning(s)";
-  details: RepositoryExecutionDetail[];
 }
 
 /**
@@ -31,9 +24,9 @@ export function formatDuration(startTime: Date, endTime: Date): string {
  * Generates and outputs summary reports:
  * - Outputs a clean, standardized console log summary with execution duration.
  * - If running inside GitHub Actions ($GITHUB_STEP_SUMMARY is present),
- *   writes a rich Markdown table for the GitHub Actions Job Summary UI.
+ *   writes a concise Markdown table for the GitHub Actions Job Summary UI.
  * - Preserves complete stealth privacy: backup username is masked as [CONFIDENTIAL_STORAGE],
- *   and private repositories metadata/counts are redacted.
+ *   and individual repository names are omitted to prevent historical footprint exposure.
  */
 export async function generateExecutionReport(
   metrics: BackupExecutionMetrics
@@ -73,18 +66,7 @@ export async function generateExecutionReport(
     `| **Failures** | ${metrics.failures} |`,
     ``,
     `> [!NOTE]`,
-    `> **Stealth Mode Active**: Private repositories are mirrored and synchronized to cold storage with zero-knowledge metadata protection. Counts, individual names, and logs are redacted to prevent footprint identification.`,
-    ``,
-    `### Public Repositories Breakdown`,
-    ``,
-    `| Repository | Status | Details |`,
-    `| :--- | :---: | :--- |`,
-    ...metrics.details.map((item) => {
-      const details =
-        item.reason ??
-        (item.status === "SKIPPED" ? "Already up-to-date" : "Synchronized");
-      return `| \`${item.name}\` | \`${item.status}\` | ${details} |`;
-    }),
+    `> **Stealth Mode Active**: Repositories are mirrored and synchronized to cold storage with zero-knowledge metadata protection. Individual repository names and detailed logs are redacted to prevent historical footprint identification.`,
     ``,
   ].join("\n");
 

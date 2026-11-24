@@ -14,7 +14,7 @@ O projeto automatiza a proteção de ativos de código e contingência operacion
 - **Blindagem OpSec e Modo Stealth (*Zero-Knowledge Footprint*):** Projetado para operar em repositórios públicos de portfólio sem expor dados confidenciais:
   - Mascaramento da conta de backup como `[CONFIDENTIAL_STORAGE]`.
   - Sincronização de repositórios privados em lote silencioso, sem revelar nomes, contagens ou rastros de superfície (*Information Leakage*).
-  - Exibição nominal e detalhada apenas para os projetos públicos.
+  - Omissão de nomes individuais de repositórios nos logs e relatórios da esteira para garantir que projetos públicos que se tornem privados no futuro não deixem rastros no histórico do GitHub Actions.
 - **Dashboard de Auditoria Nativo ($GITHUB_STEP_SUMMARY):** Geração dinâmica de relatório executivo em Markdown renderizado diretamente na aba Actions do GitHub, sem gerar commits nem inflar o repositório.
 
 ## Destaques Arquiteturais e Funcionalidades
@@ -48,7 +48,7 @@ Exclusões na origem não resultam em deleção imediata no destino:
 Em esteiras de CI/CD em repositórios públicos, os logs de execução e a aba Actions são 100% públicos. Para conciliar exibição de portfólio profissional e confidencialidade absoluta:
 - A conta de redundância nunca é revelada em logs (identificada como `[CONFIDENTIAL_STORAGE]`).
 - Os repositórios privados são sincronizados com toda a redundância binária em segundo plano, mas agrupados em um status único `Secured & Synchronized (Stealth Mode)`.
-- Nenhuma contagem total ou pista aritmética é exposta, impedindo que terceiros descubram a quantidade ou identidade de repositórios confidenciais.
+- Nomes individuais de repositórios (públicos ou privados) não são expostos nos logs ou no Job Summary, impedindo que projetos públicos que venham a se tornar privados fiquem registrados no histórico de execuções da aba Actions.
 
 ## Gestão Ágil e Governança com Jira Software
 
