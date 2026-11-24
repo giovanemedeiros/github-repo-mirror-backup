@@ -9,12 +9,9 @@ import {
   syncRepositoryMetadata,
   syncReleases,
   disableActionsInBackup,
-  isRepositoryUpToDate
+  isRepositoryUpToDate,
 } from "./services/metadata.service.js";
-import {
-  generateExecutionReport,
-  type RepositoryExecutionDetail,
-} from "./services/report.service.js";
+import { generateExecutionReport } from "./services/report.service.js";
 
 async function main() {
   console.log("[INFO] [github-repo-mirror-backup] Initialized successfully.\n");
@@ -38,25 +35,19 @@ async function main() {
     let publicSynced = 0;
     let publicSkipped = 0;
     let failures = 0;
-    const executionDetails: RepositoryExecutionDetail[] = [];
 
     // Phase 1: Public Repositories Synchronization
     for (const [index, repo] of publicRepos.entries()) {
       const progress = `[${index + 1}/${publicRepos.length}]`;
 
       console.log(`------------------------------------------------------------`);
-      console.log(`[INFO] ${progress} Checking public repository: ${repo.name}`);
+      console.log(`[INFO] ${progress} Checking public repository...`);
 
       // Perform complete multi-dimensional drift detection
       const syncStatus = await isRepositoryUpToDate(sourceUser, backupUser, repo);
       if (syncStatus.isUpToDate) {
         console.log(`[SKIP] Repository is already up-to-date. Skipping mirror.\n`);
         publicSkipped++;
-        executionDetails.push({
-          name: repo.name,
-          status: "SKIPPED",
-          reason: "Already up-to-date",
-        });
         continue;
       }
 
@@ -75,13 +66,8 @@ async function main() {
       });
 
       if (!mirrorResult.success) {
-        console.error(`[ERROR] Failed to mirror Git data for ${repo.name}: ${mirrorResult.error}`);
+        console.error(`[ERROR] ${progress} Failed to mirror Git data: ${mirrorResult.error}`);
         failures++;
-        executionDetails.push({
-          name: repo.name,
-          status: "FAILED",
-          reason: mirrorResult.error,
-        });
         continue;
       }
       console.log(`[SUCCESS] Git data mirrored successfully.`);
@@ -91,19 +77,14 @@ async function main() {
       console.log(`[SUCCESS] Metadata synchronized.`);
 
       // Synchronize GitHub Releases
-      await syncReleases(sourceUser, backupUser, repo.name);
+      await syncReleases(sourceUser, backupUser, repo.name, false);
       console.log(`[SUCCESS] Releases synchronized.`);
 
       // Disable GitHub Actions for safe cold storage
-      await disableActionsInBackup(backupUser, repo.name);
+      await disableActionsInBackup(backupUser, repo.name, false);
       console.log(`[SUCCESS] Cold storage secured (Actions disabled).\n`);
 
       publicSynced++;
-      executionDetails.push({
-        name: repo.name,
-        status: "SYNCED",
-        reason: syncStatus.reason,
-      });
     }
 
     // Phase 2: Private Repositories Synchronization (Stealth Mode)
@@ -170,7 +151,6 @@ async function main() {
       publicSkipped,
       failures,
       privateStatus,
-      details: executionDetails,
     });
   } catch (error: any) {
     console.error("[ERROR] Execution failed:", error.message);

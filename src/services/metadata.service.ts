@@ -33,7 +33,7 @@ export async function disableActionsInBackup(
   repoName: string,
   isPrivate: boolean = false
 ): Promise<void> {
-  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : "[PUBLIC REPOSITORY]";
   try {
     await backupOctokit.rest.actions.setGithubActionsPermissionsRepository({
       owner: backupOwner,
@@ -55,7 +55,7 @@ export async function syncReleases(
   repoName: string,
   isPrivate: boolean = false
 ): Promise<void> {
-  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : "[PUBLIC REPOSITORY]";
 
   const [sourceReleases, backupReleases] = await Promise.all([
     sourceOctokit.paginate(sourceOctokit.rest.repos.listReleases, {

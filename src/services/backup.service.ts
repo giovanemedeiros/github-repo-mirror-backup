@@ -21,7 +21,7 @@ export async function ensureBackupRepositoryExists(
   description?: string | null,
   isPrivate: boolean = false
 ): Promise<ProvisionResult> {
-  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : repoName;
+  const displayName = isPrivate ? "[PRIVATE REPOSITORY]" : "[PUBLIC REPOSITORY]";
 
   try {
     await backupOctokit.rest.repos.get({
@@ -111,7 +111,7 @@ export async function reconcileDeletedRepositories(
       continue;
     }
 
-    const displayRepoName = bRepo.private ? "[PRIVATE REPOSITORY]" : bRepo.name;
+    const displayRepoName = "[REPOSITORY]";
     const match = bRepo.name.match(deletePattern);
 
     // Case 1: Repository is already in soft delete (starts with DELETED_YYYY-MM-DD_)
