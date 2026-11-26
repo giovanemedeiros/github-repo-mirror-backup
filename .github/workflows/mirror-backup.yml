@@ -2,9 +2,14 @@ name: Git Repository Mirror Backup
 
 on:
   workflow_dispatch:
-  schedule:
-    # Runs daily at 06:37 UTC (03:37 BRT - off-peak minute to avoid GitHub Actions queue congestion)
-    - cron: "37 6 * * *"
+  # NOTE: Native GitHub Actions 'schedule' (cron) events are placed in a low-priority shared queue
+  # that can experience multi-hour delays during peak loads. To guarantee strict execution within
+  # the 04:00-05:00 BRT maintenance window, this workflow is triggered via the GitHub REST API
+  # ('workflow_dispatch' high-priority queue) using Google Apps Script (see scripts/gas-trigger.template.js)
+  # or any compatible external cron scheduler.
+  # Uncomment the 'schedule' block below if you prefer native GitHub Actions cron scheduling:
+  # schedule:
+  #   - cron: "37 6 * * *"
 
 jobs:
   backup-mirror:
