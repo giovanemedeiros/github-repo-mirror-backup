@@ -64,7 +64,10 @@ O desenvolvimento seguiu rigorosamente o padrão corporativo de engenharia e gov
 github-repo-mirror-backup/
 ├── .github/
 │   └── workflows/
-│       └── mirror-backup.yml      # Workflow agendado (cron) e manual
+│       └── mirror-backup.yml          # Pipeline CI/CD de sincronização contínua
+├── scripts/
+│   ├── README.md                      # Guia passo a passo de agendamento no Google Apps Script
+│   └── gas-trigger.template.js        # Template JavaScript para disparo de alta prioridade via API
 ├── src/
 │   ├── config/
 │   │   └── octokit.ts             # Clientes autenticados com fail-fast e logger silencioso
@@ -131,5 +134,6 @@ No repositório do GitHub, acesse **Settings > Secrets and variables > Actions**
 - `BACKUP_GITHUB_TOKEN`: PAT da conta de backup.
 
 ### 2. Gatilhos de Execução
-- **Agendamento Diário (Cron):** Executa automaticamente todos os dias às **06:37 UTC** (**03:37 BRT** - expressão cron `37 6 * * *`), utilizando minuto fora de pico (*off-peak*) para evitar filas de congestionamento do GitHub Actions e mantendo a contingência sempre atualizada após a execução do bot de catálogo.
-- **Disparo Manual (*Workflow Dispatch*):** Pode ser executado sob demanda a qualquer instante pela interface web do GitHub Actions com um clique em **Run workflow**.
+- **Disparo Agendado de Alta Prioridade via API (`workflow_dispatch`):** Como o agendador interno (`on: schedule`) do GitHub Actions opera em uma fila compartilhada de baixa prioridade (sujeita a atrasos de várias horas em períodos de pico global), o bloco `schedule` permanece comentado por padrão no arquivo `.yml`. Para garantir a execução estrita na janela da madrugada (**04:00 às 05:00 BRT**) com fila zero e assegurar o *Recovery Point Objective (RPO)* diário, utiliza-se um acionador externo (como o **Google Apps Script** ou ferramenta equivalente) que realiza uma requisição `POST` na API oficial do GitHub acionando o `workflow_dispatch`. O repositório inclui o template pronto em [`scripts/gas-trigger.template.js`](scripts/gas-trigger.template.js) e o guia completo de configuração em [`scripts/README.md`](scripts/README.md).
+- **Agendamento Nativo Opcional (`schedule / cron`):** Caso prefira utilizar o agendador interno do próprio GitHub Actions sem serviços externos, basta descomentar o bloco `schedule` (`cron: "37 6 * * *"`) em `.github/workflows/mirror-backup.yml`.
+- **Disparo Manual Sob Demanda (Interface Web):** Pode ser executado sob demanda a qualquer instante pela interface web do GitHub Actions com um clique em **Run workflow**.
