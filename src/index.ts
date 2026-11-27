@@ -154,6 +154,7 @@ async function main() {
     });
   } catch (error: any) {
     console.error("[ERROR] Execution failed:", error.message);
+    process.exit(1);
   }
 }
 
