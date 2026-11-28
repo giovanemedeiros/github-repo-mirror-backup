@@ -86,7 +86,7 @@ export async function ensureBackupRepositoryExists(
 /**
  * Reconciles repositories in the backup account against the source account.
  * Implements a 30-day Soft Delete retention policy:
- * 1. If a repository was deleted from source: renames to DELETED_YYYY-MM-DD_<name> and archives it (read-only).
+ * 1. If a repository was deleted from source: renames to DELETED-YYYY-MM-DD__<name> and archives it (read-only).
  * 2. If a repository has been in soft delete and its 30-day retention has expired: permanently deletes it.
  */
 export async function reconcileDeletedRepositories(
@@ -102,7 +102,7 @@ export async function reconcileDeletedRepositories(
     }
   );
 
-  const deletePattern = /^DELETED_(\d{4}-\d{2}-\d{2})_(.+)$/;
+  const deletePattern = /^DELETED[-_](\d{4}-\d{2}-\d{2})(?:__|_)(.+)$/;
   const currentDate = new Date();
 
   for (const bRepo of backupRepos) {
@@ -114,10 +114,11 @@ export async function reconcileDeletedRepositories(
     const displayRepoName = "[REPOSITORY]";
     const match = bRepo.name.match(deletePattern);
 
-    // Case 1: Repository is already in soft delete (starts with DELETED_YYYY-MM-DD_)
+    // Case 1: Repository is already in soft delete (matches DELETED-YYYY-MM-DD__<name> or legacy format)
     if (match) {
-      const expirationDateStr = match[1];
-      const expirationDate = new Date(expirationDateStr!);
+      const expirationDateStr = match[1]!;
+      const originalName = match[2]!;
+      const expirationDate = new Date(expirationDateStr);
 
       // Check if the 30-day retention period has expired
       if (currentDate >= expirationDate) {
@@ -128,7 +129,28 @@ export async function reconcileDeletedRepositories(
         });
         console.log(`[SUCCESS] Purged repository ${displayRepoName} from backup.`);
       } else {
-        console.log(`[INFO] Retention active for ${displayRepoName} (scheduled for purge on ${expirationDateStr}).`);
+        // Automatically migrate legacy naming format (DELETED_YYYY-MM-DD_<name>) to DELETED-YYYY-MM-DD__<name>
+        const expectedPrefix = `DELETED-${expirationDateStr}__`;
+        if (!bRepo.name.startsWith(expectedPrefix)) {
+          const maxOriginalLen = 100 - expectedPrefix.length;
+          const migratedName = `${expectedPrefix}${originalName.slice(0, maxOriginalLen)}`;
+          if (bRepo.archived) {
+            await backupOctokit.rest.repos.update({
+              owner: backupOwner,
+              repo: bRepo.name,
+              archived: false,
+            });
+          }
+          await backupOctokit.rest.repos.update({
+            owner: backupOwner,
+            repo: bRepo.name,
+            name: migratedName,
+            archived: true,
+          });
+          console.log(`[INFO] Migrated soft-deleted repository naming format for ${displayRepoName}.`);
+        } else {
+          console.log(`[INFO] Retention active for ${displayRepoName} (scheduled for purge on ${expirationDateStr}).`);
+        }
       }
       continue;
     }
@@ -145,7 +167,7 @@ export async function reconcileDeletedRepositories(
     const expirationDateStr = expirationDate.toISOString().slice(0, 10); // Format: YYYY-MM-DD
 
     // 100-character safety lock: ensures new name never exceeds GitHub's 100-char limit
-    const prefix = `DELETED_${expirationDateStr}_`;
+    const prefix = `DELETED-${expirationDateStr}__`;
     const maxOriginalLength = 100 - prefix.length;
     const safeOriginalName = bRepo.name.slice(0, maxOriginalLength);
     const newRepoName = `${prefix}${safeOriginalName}`;

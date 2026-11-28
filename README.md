@@ -10,7 +10,7 @@ O projeto automatiza a proteção de ativos de código e contingência operacion
 - **Detecção de Drift Multi-Dimensional:** Compara estado de código, branch padrão, metadados ("About") e releases antes de acionar o espelhamento, evitando downloads desnecessários e reduzindo a execução para milissegundos.
 - **Auto-Provisionamento Resiliente:** Criação automática de repositórios bare estritamente privados com retentativas de *backoff* exponencial e *throttling* contra limites secundários da API (*Secondary Rate Limits*).
 - **Cold Storage Seguro:** Desativação automática de workflows do GitHub Actions na conta de backup para evitar execuções redundantes, loops ou custos imprevistos.
-- **Governança de Retenção (Soft Delete de 30 Dias):** Repositórios excluídos na conta principal são arquivados e renomeados no formato `DELETED_YYYY-MM-DD_<name>` com trava de segurança de 100 caracteres, garantindo 30 dias de recuperação antes do expurgo definitivo.
+- **Governança de Retenção (Soft Delete de 30 Dias):** Repositórios excluídos na conta principal são arquivados e renomeados no formato `DELETED-YYYY-MM-DD__<name>` com trava de segurança de 100 caracteres, garantindo 30 dias de recuperação antes do expurgo definitivo.
 - **Blindagem OpSec e Modo Stealth (*Zero-Knowledge Footprint*):** Projetado para operar em repositórios públicos de portfólio sem expor dados confidenciais:
   - Mascaramento da conta de backup como `[CONFIDENTIAL_STORAGE]`.
   - Sincronização de repositórios privados em lote silencioso, sem revelar nomes, contagens ou rastros de superfície (*Information Leakage*).
@@ -39,7 +39,7 @@ Se todos os critérios forem idênticos, a sincronização é ignorada em miliss
 ### 3. Política de Retenção e Soft Delete de 30 Dias (`backup.service.ts`)
 Exclusões na origem não resultam em deleção imediata no destino:
 - O robô detecta repositórios que existem no backup mas deixaram de existir na origem.
-- Renomeia o repositório para `DELETED_YYYY-MM-DD_<nome>` (calculando 30 dias à frente).
+- Renomeia o repositório para `DELETED-YYYY-MM-DD__<nome>` (calculando 30 dias à frente).
 - Trava de 100 caracteres: trunca o nome original com segurança caso o prefixo exceda o limite de nomes do GitHub.
 - Arquiva o repositório (`archived: true`) tornando-o somente-leitura.
 - Após o término do prazo de 30 dias, o robô executa a purga definitiva de forma controlada.
